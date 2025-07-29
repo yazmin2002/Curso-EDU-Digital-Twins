@@ -1,0 +1,100 @@
+/* ESP32 HTTP IoT Server Example for Wokwi.com
+
+  https://wokwi.com/projects/320964045035274834
+
+  To test, you need the Wokwi IoT Gateway, as explained here:
+
+  https://docs.wokwi.com/guides/esp32-wifi#the-private-gateway
+
+  Then start the simulation, and open http://localhost:9080
+  in another browser tab.
+
+  Note that the IoT Gateway requires a Wokwi Club subscription.
+  To purchase a Wokwi Club subscription, go to https://wokwi.com/club
+*/
+
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
+#include <uri/UriBraces.h>
+#include <DHT.h>
+
+// DHT configuration
+#define DHTPIN 15          // Pin donde se conecta el sensor
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+// WiFi configuration
+#define WIFI_SSID "Wokwi-GUEST"
+#define WIFI_PASSWORD ""
+#define WIFI_CHANNEL 6
+
+WebServer server(80);
+
+float humidity = 0.0;
+unsigned long lastReadTime = 0;
+const unsigned long readInterval = 1000; // 1 second
+
+void sendHtml() {
+  String response = R"rawliteral(
+    <!DOCTYPE html><html>
+      <head>
+        <title>ESP32 Humidity Monitor</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          html { font-family: sans-serif; text-align: center; padding-top: 30px; }
+          body { background-color: #f2f2f2; }
+          h1 { color: #333; }
+          .value { font-size: 2em; color: #5B5; }
+        </style>
+      </head>
+      <body>
+        <h1>Current Humidity</h1>
+        <div class="value">%HUMIDITY%%</div>
+      </body>
+    </html>
+  )rawliteral";
+
+  // Replace placeholder with real humidity
+  response.replace("%HUMIDITY%", String(humidity, 1));
+  server.send(200, "text/html", response);
+}
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL);
+  Serial.print("Connecting to WiFi ");
+  Serial.print(WIFI_SSID);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(100);
+    Serial.print(".");
+  }
+  Serial.println(" Connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", sendHtml);
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+void loop() {
+  server.handleClient();
+
+  // Read humidity every 1 second
+  if (millis() - lastReadTime >= readInterval) {
+    lastReadTime = millis();
+    float h = dht.readHumidity();
+    if (!isnan(h)) {
+      humidity = h;
+      Serial.print("Humidity: ");
+      Serial.print(humidity);
+      Serial.println(" %");
+    } else {
+      Serial.println("Failed to read from DHT sensor!");
+    }
+  }
+}
+
