@@ -1,0 +1,1 @@
+En esta carpeta se encuentran todos los archivos de código para leer los datos del sensor de humedad y temperatura DHT22 del simulador Wokwi, guardarlos en una base de datos local y posteriormente graficarlos.
